@@ -1,0 +1,876 @@
+---
+title: "HDS_edited"
+author: "Prakrita Krishna"
+date: "2024-04-19"
+output: html_document
+---
+
+###############################Install and load packages################
+
+```{r}
+install.packages(c("Hmisc","descr","tableone","kableExtra","semTools","qualvar","labelled"),dependencies = TRUE)
+```
+
+```{r}
+packages <- c('Hmisc','descr','tableone','kableExtra','semTools','qualvar','labelled','tidyverse', 'knitr')
+```
+
+```{r}
+purrr::walk(packages,library,character.only=T)
+```
+
+```{r}
+# Install the necessary packages
+#install.packages("haven")
+library(haven)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+install.packages("foreign")
+library(foreign)
+
+#Read the XPT files into DataFrames
+df1 <- as.data.frame(read.xport("C:/Users/user/Downloads/DEMO_J.XPT"))
+df2 <- as.data.frame(read.xport("C:/Users/user/Downloads/SLQ_J.XPT"))
+df3 <- as.data.frame(read.xport("C:/Users/user/Downloads/DPQ_J.XPT"))
+
+#Merge the DataFrames
+merged_df <- merge(merge(df1, df2, by = "SEQN"), df3, by = "SEQN")
+
+# Save the merged DataFrame to a CSV file
+write.csv(merged_df, "C:/Users/user/OneDrive/Desktop/HDS_Project/export_dataframe.csv", row.names = FALSE)
+```
+
+
+#############################Loading data###############################
+
+
+```{r}
+# read the 2017 sleep and mental health data
+slp.mtl.2017 <- read.csv(file = "export_dataframe.csv")
+```
+
+
+```{r}
+summary(slp.mtl.2017)
+```
+## Cleaning the dataset ###
+```{r}
+slp.mtl.2017.df <- slp.mtl.2017 %>% 
+  select(SEQN, RIAGENDR,RIDAGEYR, RIDRETH1,DMQMILIZ,DMDMARTL,SLD012,SLD013,SLQ050,DPQ010,DPQ020,DPQ030,DPQ040,DPQ050,DPQ060,DPQ070,DPQ080,DPQ090,DPQ100)
+
+summary(slp.mtl.2017.df)
+```
+Recoding the variables to its appropriate datatypes
+```{r}
+slp.mtl.2017.cleaned <- slp.mtl.2017.df %>%
+  select(RIAGENDR,RIDAGEYR, RIDRETH1,DMQMILIZ, DMDMARTL, SLD012,SLD013, SLQ050, DPQ010, DPQ020, DPQ030, DPQ040, DPQ050, DPQ060, DPQ070, DPQ080, DPQ090, DPQ100) %>%
+  mutate(RIAGENDR = as.factor(x=RIAGENDR))%>%
+  mutate(RIAGENDR = recode_factor(.x = RIAGENDR,
+                    `1` = 'Male',
+                    `2` = 'Female',
+                    `.` = NA_character_)) %>%
+  rename(Gender=RIAGENDR) %>%
+  
+  mutate(RIDAGEYR = as.numeric(x=RIDAGEYR))%>%
+  rename(Age=RIDAGEYR) %>%
+  
+  mutate(RIDRETH1 = as.factor(x=RIDRETH1))%>%
+  mutate(RIDRETH1 = recode_factor(.x = RIDRETH1,
+                    `1` = 'Mexican American',
+                    `2` = 'Other Hispanic',
+                    `3` = 'Non-Hispanic White',
+                    `4` = 'Non-Hispanic Black',
+                    `6` = 'Non-Hispanic Asian',
+                    `5` = 'Other Race',
+                    `.` = NA_character_)) %>%
+  rename(Race=RIDRETH1) %>%
+  
+  mutate(DMQMILIZ = as.factor(x=DMQMILIZ))%>%
+  mutate(DMQMILIZ = recode_factor(.x = DMQMILIZ,
+                    `1` = 'Yes',
+                    `2` = 'No',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(ArmedForces = DMQMILIZ) %>%
+  
+  mutate(DMDMARTL  = as.factor(x=DMDMARTL ))%>%
+  mutate(DMDMARTL  = recode_factor(.x = DMDMARTL,
+                    `1` = 'Married',
+                    `2` = 'Widowed',
+                    `3` = 'Divorced',
+                    `4` = 'Seperated',
+                    `5` = 'Never Married',
+                    `6` = 'Living with partner',
+                    `77` = NA_character_,
+                    `99` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(mstatus = DMDMARTL) %>%
+  
+  mutate(SLD012 = as.numeric(x=SLD012))%>%
+  rename(Sleep_hours_on_weekdays=SLD012) %>%
+  
+  mutate(SLD013 = as.numeric(x=SLD013))%>%
+  rename(Sleep_hours_on_weekend=SLD013) %>%
+  
+  mutate(SLQ050  = as.factor(x=SLQ050 ))%>%
+  mutate(SLQ050  = recode_factor(.x = SLQ050 ,
+                    `1` = 'Yes',
+                    `2` = 'No',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Trouble_sleeping = SLQ050 ) %>%
+  
+  mutate(DPQ010  = as.factor(x=DPQ010 ))%>%
+  mutate(DPQ010  = recode_factor(.x = DPQ010,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Have_little_interest_in_doing_things=DPQ010) %>%
+  
+  mutate(DPQ020  = as.factor(x=DPQ020 ))%>%
+  mutate(DPQ020  = recode_factor(.x = DPQ020,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Feeling_depressed = DPQ020) %>%
+  
+  mutate(DPQ030  = as.factor(x=DPQ030 ))%>%
+  mutate(DPQ030  = recode_factor(.x = DPQ030,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Trouble_sleeping_or_sleeping_too_much = DPQ030) %>%
+  
+  mutate(DPQ040  = as.factor(x=DPQ040 ))%>%
+  mutate(DPQ040  = recode_factor(.x = DPQ040,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Feeling_tired = DPQ040) %>%
+  
+  mutate(DPQ050  = as.factor(x=DPQ050 ))%>%
+  mutate(DPQ050  = recode_factor(.x = DPQ050,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Poor_apetite_or_Overeating = DPQ050) %>%
+  
+  mutate(DPQ060  = as.factor(x=DPQ060 ))%>%
+  mutate(DPQ060  = recode_factor(.x = DPQ060,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Feeling_bad_about_yourself = DPQ060) %>%
+  
+   mutate(DPQ070  = as.factor(x=DPQ070 ))%>%
+  mutate(DPQ070  = recode_factor(.x = DPQ070,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Trouble_concentrating = DPQ070) %>%
+  
+  mutate(DPQ080  = as.factor(x=DPQ080 ))%>%
+  mutate(DPQ080  = recode_factor(.x = DPQ080,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Moving_or_speaking_slowly_or_fast = DPQ080) %>%
+  
+   mutate(DPQ090  = as.factor(x=DPQ090 ))%>%
+  mutate(DPQ090  = recode_factor(.x = DPQ090,
+                    `0` = 'Not at all',
+                    `1` = 'Several days',
+                    `2` = 'More than half the days',
+                    `3` = 'Nearly every day',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Thought_you_would_be_better_off_dead = DPQ090) %>%
+  
+   
+  
+  mutate(DPQ100  = as.factor(x=DPQ100 ))%>%
+  mutate(DPQ100  = recode_factor(.x = DPQ100,
+                    `0` = 'Not at all difficult',
+                    `1` = 'Somewhat difficult',
+                    `2` = 'Very difficult',
+                    `3` = 'Extremely difficult',
+                    `7` = NA_character_,
+                    `9` = NA_character_,
+                    `.` = NA_character_)) %>%
+  rename(Difficulty_these_problems_have_caused = DPQ100) 
+
+summary(slp.mtl.2017.cleaned)
+```
+#Selecting the variables of interest and saving it to a new dataframe
+```{r}
+slp.mtl.small <- slp.mtl.2017.cleaned %>%
+  select(Gender, Age, Race, mstatus, Sleep_hours_on_weekdays, Sleep_hours_on_weekend,Trouble_sleeping, Feeling_depressed) %>%
+  drop_na(Feeling_depressed)
+```
+
+#Computing the average of the variables "sleep hours on weekday" & "sleep hours on weekend"
+```{r}
+slp.mtl.small <- slp.mtl.small %>%
+  mutate("Average_sleep_hours" = (slp.mtl.small$"Sleep_hours_on_weekdays" + slp.mtl.small$"Sleep_hours_on_weekend") / 2)
+
+summary(slp.mtl.small)
+
+```
+## Final dataframe with variables of interest
+```{r}
+write.csv(slp.mtl.small, "C:/Users/user/OneDrive/Desktop/HDS_Project/clean_dataframe.csv", row.names = FALSE)
+```
+
+
+
+
+#Descriptive statistics of the data
+```{r}
+library(tableone)
+
+# Create the table of descriptive statistics
+table1 <- CreateTableOne(vars = c("Gender", "Age", "Race", "mstatus","Sleep_hours_on_weekdays","Sleep_hours_on_weekend", "Trouble_sleeping", "Feeling_depressed"),data = slp.mtl.small)
+
+# Print the table
+print(table1, quote = FALSE, noSpaces = TRUE)
+```
+#Table representing different levels of Feeling_depressed and their frequencies
+```{r}
+# Create the table
+table.depr <- table(slp.mtl.small$Feeling_depressed)
+
+# Format the table with kable()
+kable(table.depr, col.names = c("Depression Level", "Frequency"))
+```
+
+#Table representing Gender and frequency of each Gender under different levels of Feeling Depressed variable
+```{r}
+table.gender.depr <- table(slp.mtl.small$Gender, slp.mtl.small$Feeling_depressed)
+kable(table.gender.depr)
+```
+
+
+#Table representing Race and frequency of each Race under different levels of Feeling Depressed variable
+```{r}
+table.race.depr <- table(slp.mtl.small$Race, slp.mtl.small$Feeling_depressed)
+kable(table.race.depr)
+```
+#Table representing marital status and frequency of each maritals status group under different levels of Feeling Depressed variable
+```{r}
+table.mstatus.depr <- table(slp.mtl.small$mstatus, slp.mtl.small$Feeling_depressed)
+kable(table.mstatus.depr)
+
+```
+#Table representing Trouble sleeping and frequency of each trouble sleeping under different levels of Feeling Depressed variable
+```{r}
+table.depr.trbl.slp <- table(slp.mtl.small$Trouble_sleeping, slp.mtl.small$Feeling_depressed)
+kable(table.depr.trbl.slp)
+```
+
+############ Data Visualisations ###############################
+#1. Bar-plot representing Trouble sleeping & Gender variable
+```{r}
+slp.mtl.small <- slp.mtl.small %>%
+  drop_na(Trouble_sleeping) %>%
+  drop_na(Gender)
+ggplot(slp.mtl.small,aes(x=Trouble_sleeping, fill=Gender)) +
+geom_bar(position="dodge") +
+#ylim(0,500) +
+#coord_flip() +
+labs(x="Trouble in sleeping", y="Number of observations")
+```
+Interpretation:
+The graph compares the number of observations between males and females for those who reported having trouble sleeping and those who did not.For individuals who responded "Yes" to having trouble sleeping, the number of females (teal bar) is noticeably higher than the number of males (red bar). This suggests that in this dataset, more females experienced or reported difficulties with sleeping compared to males. Overall, the graph indicates that across both categories (those with and without sleep troubles), the number of female observations exceeds the number of male observations. This could be due to various factors, such as sampling differences or a larger representation of females in the dataset.
+
+
+
+# 2. Bar-plot representing Feeling depressed & Trouble sleeping variable
+```{r}
+slp.mtl.small <- slp.mtl.small %>%
+  drop_na(Trouble_sleeping) %>%
+  drop_na(Gender)
+ggplot(slp.mtl.small,aes(x=Feeling_depressed, fill=Trouble_sleeping)) +
+geom_bar(position="dodge") +
+#ylim(0,500) +
+#coord_flip() +
+labs(x="Feeling depressed", y="Number of observations")
+```
+Interpretation:
+The graph depicts the relationship between feeling depressed and experiencing trouble sleeping. The bars represent the number of observations for individuals who responded "Yes" or "No" to having trouble sleeping, categorized by the frequency of feeling depressed. As the frequency of feeling depressed increases to "Several days," "More than half the days," and "Nearly every day," the number of observations for individuals with trouble sleeping (red bars) becomes larger than those without trouble sleeping (teal bars). This trend indicates a potential correlation between increased depression and a higher likelihood of sleep difficulties.
+
+
+# 4. Histogram depciting the sleep hours
+```{r}
+slp.mtl.small <- slp.mtl.small %>%
+                      drop_na( Average_sleep_hours)
+ggplot(slp.mtl.small,aes(x=  Average_sleep_hours)) +
+  geom_histogram() +
+  #geom_density(bw = 1.5, fill = "#7463AC") +
+  #coord_flip() +
+  labs(x="Average sleeping hours")
+```
+Interpretation:
+*This histogram displays the distribution of average sleepinging hours across a population *The x-axis represents the average sleeping hours, likely calculated by combining sleep duration on weekdays and weekends. The y-axis shows the count or frequency of observations for each range of average sleeping hours. 
+*The distribution is unimodal, meaning it has a single peak, which indicates the most common or frequent range of average sleeping hours.
+*The peak of the distribution is around the range of 7-8 hours, suggesting that the majority of individuals in the dataset sleep an average of 7-8 hours per day.
+*The distribution is slightly skewed to the right, indicating that there are more iSndividuals who sleep less than the average (7-8 hours) compared to those who sleep more than the average.
+
+
+# 5. Boxplot representing Sleep hours and Feeling depressed variables
+```{r}
+library(ggplot2)
+slp.mtl.small <- slp.mtl.small %>%
+                      drop_na( Average_sleep_hours) %>%
+                      drop_na(Feeling_depressed)
+ggplot(slp.mtl.small, aes(x = factor(Feeling_depressed), y = Average_sleep_hours)) +
+  geom_boxplot() +
+  labs(x = "Feeling depressed", y = "Average sleeping hours") +
+  theme_classic()
+```
+This box plot visualizes the distribution of average sleeping hours across different levels of feeling depressed. 
+Interpretation:
+1. "Not at all" feeling depressed:
+The median average sleeping hours for this group is around 7-8 hours (based on the middle line of the box). The distribution is relatively symmetric, with no significant outliers observed.
+2. "Several days" feeling depressed:
+The median average sleeping hours for this group is slightly lower than the "Not at all" group, around 6-7 hours. The distribution is skewed towards lower sleeping hours, with some outliers below the lower quartile (represented by dots below the box's lower whisker).
+3. "More than half the days" feeling depressed:
+The median average sleeping hours for this group is further reduced, around 5-6 hours. The distribution is heavily skewed towards lower sleeping hours, with several outliers below the lower quartile.
+4. "Nearly every day" feeling depressed:
+This group exhibits the lowest median average sleeping hours, around 4-5 hours. The distribution is highly skewed towards lower sleeping hours, with no outliers above the upper quartile.
+*Overall, the box plot clearly shows a trend where increased frequency of feeling depressed is associated with lower median average sleeping hours and a greater skew towards reduced sleep duration. Additionally, the variability in sleeping hours appears to increase as the frequency of feeling depressed increases, as indicated by the longer whiskers and more outliers.
+*This visualization suggests a potential relationship between depression and sleep disturbances, where individuals who experience more frequent depressive symptoms tend to have fewer average sleeping hours and greater variability in their sleep patterns.
+
+
+
+
+######################## Statistical Tests #####################################
+
+###############
+1. Chi-Square test to test the significance for Gender and Feeling_depressed variable.
+
+##############ASSUMPTIONS OF CHI-SQUARED TEST OF INDEPENDENCE############
+
+3 Assumptions:
+
+Assumption 1:
+- The variables must be nominal or ordinal (usually nominal).
+(Gender has categories that are in no particular order, so it is nominal. Feeling_depressed variable has categories that are in no particular order, so it is also nominal. This assumption is met.)
+
+Assumption 2:
+- The expected values should be 5 or higher in at least 80% of groups.
+(Since all expected values for both "Male" and "Female" groups in each category of feeling depressed are above 5,it satisfies the assumption.)
+
+Assumption 3:   
+- The observations must be independent.
+(Since each of the variables are independent of other variables in the sample, it satisfies the assumption)
+
+####################################################
+NHST Step 1: Write the null and alternate hypotheses
+####################################################
+
+* The null hypothesis is usually a statement that claims there is no       difference or no relationship between things, whereas the alternate      hypothesis is the claim that there is a difference or a relationship     between things. 
+* The null (H0) and alternate (HA or H1) hypotheses are written about the population and are tested using a sample from the population. 
+* Here are the null and alternate hypotheses for the voting data:
+  
+  H0: There is no association between gender and feeling depressed.
+  HA: There is an association between gender and feeling depressed.
+
+#######################################
+NHST Step 2: Compute the test statistic
+#######################################
+
+The test statistic to use when examining a relationship between two categorical variables is the chi-squared statistic, χ2.
+
+```{r}
+# chi-squared statistic for feeling depressed and gender
+chisq.test(x=slp.mtl.small$Feeling_depressed, y=slp.mtl.small$Gender)
+```
+
+The test statistic is χ2 : 35.314
+
+####################################################################
+NHST Step 3: Calculate the probability that your test statistic is at least as big as it is if there is no relationship (i.e., the null is true)
+#####################################################################
+
+The probability of seeing a chi-squared as big as 35.314 in our sample if there were no relationship among the gender and feeling depressed  0.0000001046 or p < .05.
+
+#####################################################################
+NHST Step 4: If the probability that the null is true is very small, usually less than 5%, reject the null hypothesis.
+####################################################################
+
+p = 0.000000007325 or p < .05.
+Hence, Rejecting null hypothesis
+
+#####################################################################
+NHST Step 5: If the probability that the null is true is not small, usually 5% or greater, retain the null hypothesis
+#####################################################################
+
+Not applicable here as p < 0.05 (i.e.,p =  0.0000001046)
+
+
+How to report the full interpretation after we do the five steps of NHST?????
+
+  We used the chi-squared test to test the null hypothesis that there was   no relationship between gender and feeling depressed. We rejected the null hypothesis and concluded      that there was a statistically significant association between gender and feeling depressed. [χ2(3) = 35.314; p < .05].
+  
+####################Using standardized residuals following chi-squared tests################################################################
+```{r}
+# chi-squared examining Gender and depressed feeling
+CrossTable(x = slp.mtl.small$Feeling_depressed,
+           y = slp.mtl.small$Gender,
+           expected = TRUE, # expected value
+           prop.c = FALSE, # default to include proportions in the column (disabling that by assigning FALSE)
+           prop.t = FALSE, # default to include proportion out of total (disabling that by assigning FALSE)
+           prop.chisq = FALSE, # default to include proportions of the chi-squared (disabling that by assigning FALSE)
+           chisq = TRUE, # chi-squared
+           sresid = TRUE) #standardized residuals
+```
+Interpretation:
+*"Not at all" Category:
+Male: The standardized residual for "Not at all" is 2.073, indicating more males than expected reported not feeling depressed.
+Female: The standardized residual for "Not at all" is -2.024, indicating fewer females than expected reported not feeling depressed.
+
+*"Several days" Category:
+Male: The standardized residual for "Several days" is -3.016, indicating fewer males than expected reported feeling depressed several days.
+Female: The standardized residual for "Several days" is 2.945, indicating more females than expected reported feeling depressed several days.
+*"More than half the days" Category:
+Male: The standardized residual for "More than half the days" is -1.926, indicating fewer males than expected reported feeling depressed more than half the days.
+Female: The standardized residual for "More than half the days" is 1.880, indicating more females than expected reported feeling depressed more than half the days.
+
+*"Nearly every day" Category:
+Male: The standardized residual for "Nearly every day" is -0.986, indicating slightly fewer males than expected reported feeling depressed nearly every day.
+Female: The standardized residual for "Nearly every day" is 0.962, indicating slightly more females than expected reported feeling depressed nearly every day.
+
+We used the chi-squared test to test the null hypothesis that there was   no relationship between gender and feeling depressed. We rejected the null hypothesis and concluded      that there was a statistically significant association between views on   voter registration and race-ethnicity [χ2(3) = 35.314; p < .05].The differences in standardized residuals suggest that Males are more likely to report not feeling depressed ("Not at all"), while females are more likely to report feeling depressed.Females are more likely to report feeling depressed for "Several days" and "More than half the days". Although "Nearly every day" does not show high absolute values of standardized residuals, the association between the variables remains significant overall.
+
+
+######################Computing and interpreting effect sizes to understand the strength of a significant chi-squared relationship########
+
+* Computing the Cramér’s V statistic
+```{r}
+# compute Cramér’s V for Gender and Feeling depressed 
+# chi-squared analysis
+library(package = "lsr")
+cramersV(x = slp.mtl.small$Feeling_depressed, y = slp.mtl.small$Gender)
+```
+
+How to interpret Cramer's V?
+* Small or weak effect size for V = .1
+* Medium or moderate effect size for V = .3
+* Large or strong effect size for V = .5
+
+Interpretation:
+There is a statistically significant relationship between gender and feeling depressed, and the relationship is weak. 
+
+
+##############################################################################
+2. Chi-sqare test for testing statistical significance between Feeling depressed and Trouble sleeping variables
+
+```{r}
+# chi-squared statistic for feeling depressed and gender
+chisq.test(x=slp.mtl.small$Feeling_depressed, y=slp.mtl.small$Trouble_sleeping)
+```
+*NHST Process*:
+
+NHST Step 1: Write the null & alternate hypothesis
+  H0: There is no association between feeling depressed and trouble in sleeping.
+  HA: There is an association between feeling depressed and trouble in sleeping.
+  
+NHST Step 2: Compute the test statistic
+The test statistic is χ2 : 281.62 and the p-value is < 0.05
+
+NHST Step 3:  Calculate the probability that your test statistic is at least as big as it is if there is no relationship (i.e., the null is true)
+The probability of seeing a chi-squared as big as 281.62 in our sample if there were no relationship among the gender and feeling depressed  where p < .05.
+
+NHST Step 4 and 5: Interpret the probability and write a conclusion
+We used the chi-squared test to test the null hypothesis that there was no relationship between feeling depressed & trouble sleeping. We rejected the null hypothesis and concluded that there was a statistically significant association between feeling depressed & trouble sleeping. [χ2(3) = 281.62; p < .05].
+
+*The null hypothesis is rejected*
+
+####################Using standardized residuals following chi-squared tests################################################################
+```{r}
+# chi-squared examining Gender and depressed feeling
+CrossTable(x = slp.mtl.small$Feeling_depressed,
+           y = slp.mtl.small$Trouble_sleeping,
+           expected = TRUE, # expected value
+           prop.c = FALSE, # default to include proportions in the column (disabling that by assigning FALSE)
+           prop.t = FALSE, # default to include proportion out of total (disabling that by assigning FALSE)
+           prop.chisq = FALSE, # default to include proportions of the chi-squared (disabling that by assigning FALSE)
+           chisq = TRUE, # chi-squared
+           sresid = TRUE) #standardized residuals
+```
+Interpretation:
+The chi-squared statistic is 311.2634 with 3 degrees of freedom. The p-value is less than 2e-16, which is extremely small. This indicates a significant association between Feeling_depressed and Trouble_sleeping. For the category "Not at all" of Feeling_depressed, there is a significant deviation in the observed and expected counts, especially for those who report not having trouble sleeping. The standardized residual is -7.176 for those who report trouble sleeping, indicating fewer people than expected in this group. For the categories "Several days," "More than half the days," and "Nearly every day" of Feeling_depressed, there are significant deviations in the observed and expected counts, especially for those who report having trouble sleeping. The standardized residuals are positive and high, indicating more people than expected in these groups. Individuals who report feeling depressed, particularly in the higher levels of depression, are more likely to experience trouble sleeping than those who do not feel depressed.
+
+######################Computing and interpreting effect sizes to understand the strength of a significant chi-squared relationship########
+
+* Computing the Cramér’s V statistic
+```{r}
+# compute Cramér’s V for Gender and Feeling depressed 
+# chi-squared analysis
+library(package = "lsr")
+cramersV(x = slp.mtl.small$Feeling_depressed, y = slp.mtl.small$Trouble_sleeping)
+```
+Interpretation:
+* Small or weak effect size for V = .1
+* Medium or moderate effect size for V = .3
+* Large or strong effect size for V = .5
+
+There is a statistically significant relationship between feeling depressed & Trouble sleeping, and the relationship is weak to moderate. 
+
+####################################################################
+3. Anova test to see if there is statistical significance with Gender and Average sleep hours
+
+Assumptions:
+Having a continuous outcome and independent groups, Independent observations, An outcome that is normally distributed within groups, and equal variance of the outcome within groups.
+
+NHST Step 1: Write null & alternate hypothesis
+H0:There is no association between sleep hours and gender
+HA:There is an association between sleep hours and gender
+
+##Testing for normality
+```{r}
+# graph avg sleep hours by gender 
+slp.mtl.small %>%
+      drop_na(Average_sleep_hours) %>%
+      ggplot(aes(x = Average_sleep_hours)) +
+      geom_density(aes(fill = Gender)) +
+      facet_wrap(facets = vars(Gender), nrow = 2) +
+      scale_fill_brewer(palette = "Spectral", guide = "none") +   
+  #scale_fill_brewer(palette = "Spectral", guide = FALSE) +
+  theme_minimal() +
+  labs(x = "Percent of average sleep hours",
+   y = "Probability density")
+```
+Interpretation:
+Based on the density plots, the groups look somewhat normally distributed.
+
+##Statistical test to check normality
+```{r}
+# Perform the Shapiro-Wilk test for each gender group
+# Load necessary libraries
+library(dplyr)
+
+# Perform Shapiro-Wilk test for normality on Average_sleep_hours for each Gender group
+shapiro_results <- slp.mtl.small %>%
+    group_by(Gender) %>%  # Group the data by Gender
+    summarise(shapiro_pval = list(shapiro.test(Average_sleep_hours))) %>%  # Perform Shapiro-Wilk test and get test object
+    mutate(shapiro_pval = sapply(shapiro_pval, function(test) test$p.value))  # Extract p-values
+
+# Print the results
+print(shapiro_results)
+
+
+```
+Interpretation:
+* Based on the p-values, two of the Shapiro-Wilk tests were statistically significant, indicating   that the null hypothesis for this test (i.e., the data are normally distributed) was rejected in each   group.
+
+### Testing for variance
+```{r}
+# equal variances for sleep hours by Gender
+car::leveneTest(y = Average_sleep_hours ~ Gender, data = slp.mtl.small, center = mean)
+```
+Interpretation:
+* Given the high p-value, you do not have evidence to reject the null hypothesis, which states that the variances of the continuous variable (Average_sleep_hours) are equal across the two groups (Gender). 
+* The ANOVA meets the assumption of homogeneity of variances.
+
+All the assumptions are met.
+
+
+NHST Step 2: Compute the test statistic
+```{r}
+#ANOVA test for avg sleep hours and gender
+# Perform the ANOVA test
+ano.slp.gen <- aov(Average_sleep_hours ~ factor(Gender), data = slp.mtl.small)
+
+# Print the ANOVA results
+summary(ano.slp.gen)
+```
+Interpretation:
+*The ANOVA model includes one F-statistic, which tests the main effect of the independent variable (Gender) on the dependent variable (Average_sleep_hours).
+*The main effect is the relationship between the Gender factor and the Average_sleep_hours variable, ignoring the impact of any additional variables or interactions.
+*The F-statistic for the Gender factor is 45.11 with a p-value of 2.07e-11. This indicates that there is a statistically significant difference in the mean average sleep hours between the two gender groups (Male and Female).
+*The results suggest that the Gender factor significantly influences the outcome variable (Average_sleep_hours).
+*Since there are no interaction terms in the model, the interpretation focuses solely on the main effect of the Gender factor.
+*Therefore, the ANOVA results suggest that there is a significant difference in mean average sleep hours between males and females.
+
+NHST Step 3:  Calculate the probability that your test statistic is at least as big as it is if there is no relationship (i.e., the null is true)
+The p value in this case is <.05
+
+NHST Step 4 and 5: Interpret the probability and write a conclusion
+ased on the ANOVA result, we can conclude that there is a statistically significant difference in mean average sleep hours between male and female groups.Since the p-value is extremely low (2.07e-11), we reject the null hypothesis that there is no difference in mean average sleep hours between the two gender groups.This means that Gender has a significant impact on the average sleep hours, indicating a difference in sleep patterns between male and female individuals in the dataset.
+
+##Post-hoc test for one-way anova##################
+```{r}
+#Tukey’s HSD post hoc test 
+TukeyHSD(x = ano.slp.gen)
+```
+Interpretation:
+The Tukey multiple comparisons test for the difference in means of Average_sleep_hours between the two groups (Male and Female) of the Gender variable shows a statistically significant difference. Females sleep, on average, approximately 0.28 hours more than males. The confidence interval for the difference in means ranges from 0.20 to 0.36, and the p-value is extremely small (0), indicating strong evidence against the null hypothesis.
+
+####################### Effect size for anova test ##################
+```{r}
+# Calculate omega-squared (ω²) effect size
+# Retrieve the summary of the ANOVA model
+anova_summary <- summary(ano.slp.gen)
+
+# Obtain sum of squares for the factor and residuals
+sum_sq_factor <- anova_summary[[1]]["factor(Gender)", "Sum Sq"]
+sum_sq_residual <- anova_summary[[1]]["Residuals", "Sum Sq"]
+
+# Calculate the total sum of squares
+sum_sq_total <- sum_sq_factor + sum_sq_residual
+
+# Obtain degrees of freedom for the factor and residuals
+df_factor <- anova_summary[[1]]["factor(Gender)", "Df"]
+df_total <- sum(df_factor, anova_summary[[1]]["Residuals", "Df"])
+
+# Calculate mean squared error (MSE)
+mean_sq_error <- anova_summary[[1]]["Residuals", "Mean Sq"]
+
+# Calculate omega-squared (ω²)
+omega_squared <- (sum_sq_factor - df_factor * mean_sq_error) / (sum_sq_total + mean_sq_error)
+
+# Print the effect size (rounded to 4 decimal places)
+print(paste("Omega-squared (ω²) effect size: ", round(omega_squared, 4)))
+```
+Interpretation:
+The omega-squared value of 0.0087 suggests that while there might be a statistically significant difference between the groups, the practical significance of this difference is minimal.
+
+
+############################################################
+4. One-way anova test to see the statistical relationship between Feeling depressed and sleep hours
+
+NHST Step 1: Write null & alternate hypothesis
+H0:There is no association between feeling depressed and sleep hours
+HA:There is an association between  feeling depressed and sleep hours
+
+##Testing for normality
+```{r}
+# graph avg sleep hours by gender 
+slp.mtl.small %>%
+      drop_na(Average_sleep_hours) %>%
+      ggplot(aes(x = Average_sleep_hours)) +
+      geom_density(aes(fill = Feeling_depressed)) +
+      facet_wrap(facets = vars(Feeling_depressed), nrow = 2) +
+      scale_fill_brewer(palette = "Spectral", guide = "none") +   
+  #scale_fill_brewer(palette = "Spectral", guide = FALSE) +
+  theme_minimal() +
+  labs(x = "Percent of average sleep hours",
+   y = "Probability density")
+```
+Interpretation:
+Based on the density plots, the groups look somewhat normally distributed.
+
+
+### Statistical test for testing normality
+```{r}
+# Perform the Shapiro-Wilk test for each gender group
+# Load necessary libraries
+library(dplyr)
+
+# Perform Shapiro-Wilk test for normality on Average_sleep_hours for each Gender group
+shapiro_results_2 <- slp.mtl.small %>%
+    group_by(Feeling_depressed) %>%  # Group the data by Gender
+    summarise(shapiro_pval = list(shapiro.test(Average_sleep_hours))) %>%  # Perform Shapiro-Wilk test and get test object
+    mutate(shapiro_pval = sapply(shapiro_pval, function(test) test$p.value))  # Extract p-values
+
+# Print the results
+print(shapiro_results_2)
+```
+Interpretation:
+* Based on the p-values, two of the Shapiro-Wilk tests were statistically significant, indicating   that the null hypothesis for this test (i.e., the data are normally distributed) was rejected in each   group.
+
+### Testing for variance
+```{r}
+# equal variances for sleep hours by Gender
+car::leveneTest(y = Average_sleep_hours ~ Feeling_depressed, data = slp.mtl.small, center = mean)
+```
+Interpretation:
+Since the p value is not <.05, we fail to reject the null hypothesis. Hence the assumption of variance is not met for anova test.
+
+####################################################################33
+Alternate test for one-way anova would be Kruskal Wallis test.
+
+KRUSKAL-WALLIS TEST
+
+* Used for failing the normality assumption.
+* The Kruskal-Wallis test is used to compare three or more groups when    the normal distribution assumption fails for ANOVA (Feir-Walsh &        Toothaker, 1974; Van Hecke, 2012). 
+  
+NHST Step 1: Write the null and alternate hypotheses
+  H0: There is no association between feeling depressed and sleep hours
+  HA: There is an association between feeling depressed and sleep hours
+
+NHST Step 2: Compute the test statistic
+
+```{r}
+# Perform the Kruskal-Wallis test
+kruskal_result <- kruskal.test(Average_sleep_hours ~Feeling_depressed, data = slp.mtl.small)
+print(kruskal_result)
+```
+Interpretation:
+Sicne the p value is >0.05, we retain the null hypothesis.
+
+NHST Step 3: Calculate the probability that your test statistic is at least as big as it is if there is no relationship (i.e., the null is true)
+    The p-value is > 0.05, which, is big. 
+
+NHST Steps 4 and 5: Interpret the probability and write a conclusion
+
+  The conclusion is that there is no association between  feeling depressed and sleep hours [H(3) = 6.0635; p < .05]. Like the ANOVA results, the K-W test identifies whether there is a difference somewhere among the means, but it does not identify which groups are different from one another.For K-W, the Dunn’s post hoc test of multiple comparisons is useful for identifying which groups are statistically significantly different from which other groups.
+  
+
+Since the relation is not statistically significant, we do not require the post hoc test.
+
+
+
+#### Regression analysis #####
+NHST Step 1: Write the null and alternate hypotheses
+
+H0: A model containing gender,age,race, marital status, trouble in sleeping and average sleep hours is no better than the baseline at explaining feeling depressed. 
+HA: A  model containing gender,age,race, marital status, trouble in sleeping and average sleep hours is better than the baseline at explaining feeling depressed.
+
+NHST Step 2: Compute the test statistic
+```{r}
+# Fit the logistic regression model
+feel.depr.model <- glm(Feeling_depressed ~ Gender + Age + Race + mstatus +
+                     Trouble_sleeping + Average_sleep_hours,
+                    na.action = na.exclude,
+                   data = slp.mtl.small, family = binomial("logit"))
+
+# Print the model summary
+summary(feel.depr.model)
+```
+Interpretation:
+The logistic regression output examines the factors influencing whether an individual feels depressed. The model includes coefficients, standard errors, z-values, and p-values for each independent variable. The intercept is not significant at the 0.05 level (p-value = 0.087), indicating that the model without predictors does not significantly differ from the actual data. Gender shows a significant effect, with females more likely to feel depressed than males (p-value = 0.0004). Age is also significant, with a negative coefficient (p-value < 0.0001), suggesting older individuals are less likely to feel depressed.
+
+Significant racial differences are observed, with Other Hispanic (p-value = 0.0218) and Non-Hispanic Black (p-value = 0.0116) groups being different from the reference group (Non-Hispanic White). Different marital statuses, such as being widowed, divorced, separated, or never married, are significantly associated with a higher likelihood of feeling depressed compared to married individuals.
+
+Trouble sleeping is strongly linked to depression (p-value < 2e-16), while average sleep hours is not significant (p-value = 0.3833). The model provides insights into the relationship between these factors and the likelihood of depression, highlighting key predictors of depression.
+
+#### Computing the odds ratio
+```{r}
+#open odds.n.ends
+library(package = "odds.n.ends")
+# get model fit, model significance, odds ratios
+odds.n.ends(mod = feel.depr.model)
+```
+Interpretation:
+
+The logistic regression model shows that several factors are significantly associated with an increased likelihood of feeling depressed. Being female increases the odds of depression by approximately 29% compared to males. Certain racial groups, such as other Hispanic, also face higher odds of depression, while non-Hispanic Black individuals have lower odds. Marital statuses such as being widowed, divorced, or separated are associated with a higher likelihood of depression, with separated individuals having the highest odds of more than double compared to those who are not separated. Those without trouble sleeping have significantly lower odds of depression, around 68% less. Age and average sleep hours have minimal impact on depression odds, with age showing a slight decrease and sleep hours not being a significant predictor.
+
+NHST Step 3: Calculate the probability that your test statistic is at least as big as it is if there is no relationship (i.e., the null is true)
+*The odds.n.ends() output also shows the model chi-squared of 410.778 with the corresponding degrees of freedom of 13 and a very small p-value < 0.001
+
+NHST Steps 4 and 5: Interpret the probability and write a conclusion
+With a very tiny probability of getting a chi-squared of 410.778 or larger if the null were true, the null hypothesis is rejected.
+
+Interpretation:
+A logistic regression model containing gender,age,race, marital status, trouble in sleeping and average sleep hours was statistically significantly better than the baseline probability at predicting feeling depressed [χ2(12) = 94.74; p < .001].
+
+
+### Compute & interpret model fit #####
+```{r}
+countR2<-function(m) mean(m$y==round(m$fitted.values))
+countR2(feel.depr.model)
+```
+Interpretation:
+The model was correct 76% of the time (Count R2 =.76).
+
+
+*One alternative to the percent correctly predicted is the adjusted count R2, which   adjusts the count R2 for the number of people in the largest of the two categories   of the outcome
+```{r}
+adj.countR2<-function(m) {
+  n<-length(m$y)
+      k<-max(table(m$y))
+  correct<-table(m$y==round(m$fitted.values))[["TRUE"]]
+  (correct-k)/(n-k)
+}
+adj.countR2(feel.depr.model)
+```
+Interpretation:
+* There were 3% more correct predictions by the model than by the baseline (Adjusted Count R2 = .034).
+
+##################################
+Checking logistic regression assumptions
+
+Assumption 1: Independence of observations (ASK)
+*The NHANES center conducted a interview where they selected a single person in a randomly selected household. This data collection strategy is likely to result in independent observations.Hence, the assumption is met.
+
+Assumption 2: Linearity 
+* In linear regression, the linearity assumption is checked by examining the relationship between each continuous predictor and the outcome variable. * For logistic regression, the outcome variable is binary, so its relationship with another variable will never be linear. * Instead of plotting the relationship of the outcome with each continuous predictor, linearity is tested by plotting the log-odds of the predicted probabilities for the outcome against each of the continuous predictors in the model. * By examining the relationship between the predicted probabilities and a continuous predictor, the graph for checking linearity shows whether the predictions are equally accurate along the range of values of the predictor.
+```{r}
+# make a variable of the log-odds of the predicted values
+logit.use <- log(x = feel.depr.model$fitted.values/(1-feel.depr.model$fitted.values))
+```
+```{r}
+linearity.data <- data.frame(logit.use, age = feel.depr.model$model$Age)
+```
+```{r}
+# create a plot 
+linearity.data %>%
+ggplot(aes(x = age, y = logit.use))+
+geom_point(aes(size = "Observation"), color = "gray60", alpha = .6) +
+geom_smooth(se = FALSE, aes(color = "Loess curve")) +
+geom_smooth(method = lm, se = FALSE, aes(color = "linear")) +
+theme_minimal() +
+labs(x = "Age in years",
+     y = "Log-odds of library use predicted probability") +
+scale_color_manual(name = "Type of fit line",
+                   values = c("dodgerblue2", "deeppink")) +
+scale_size_manual(values = 1.5, name = "")
+```
+
+Interpretation:
+*The graph shows the Loess curve close to the linear fit line with the exception of the ages. 
+* In this case, the linear fit line represents a linear relationship and the Loess curve represents the actual relationship
+Hence, the assumption is met.
+
+Assumption 3: No perfect multicollinearity
+
+```{r}
+library(car)
+# Compute VIF values
+vif_values <- vif(logit_model)
+
+# Print VIF values
+print(vif_values)
+```
+Interpretation:
+None of the values in the right-hand column have a value of 2.5 or higher, so there is no discernable problem with multicollinearity.
